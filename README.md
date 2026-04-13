@@ -266,3 +266,5 @@ Multi-panel training simulator for emergency response exercises, built on ESP32:
 Proxmox · LXC · MikroTik · Synology · Traefik · Grafana · Loki · Prometheus · AdGuard Home
 
 ---
+
+*Viktor · Minsk, Belarus*
