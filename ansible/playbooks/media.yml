@@ -1,0 +1,243 @@
+---
+# playbooks/media.yml
+# Provision CT102 Media: Plex, Navidrome, iSponsorBlockTV
+# Usage: ansible-playbook -i inventory/hosts.ini playbooks/media.yml
+
+- name: CT102 Media — base setup
+  hosts: media
+  gather_facts: true
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install common dependencies
+      apt:
+        name:
+          - curl
+          - ca-certificates
+          - gnupg2
+          - ffmpeg
+          - htop
+          - rsync
+        state: present
+
+    - name: Ensure /media mount point exists
+      file:
+        path: /media
+        state: directory
+        mode: '0755'
+
+    - name: Check NFS media mount is active
+      command: mountpoint -q /media
+      register: nfs_check
+      failed_when: false
+      changed_when: false
+
+    - name: Warn if NFS not mounted
+      debug:
+        msg: >
+          WARNING: /media is not mounted!
+          Run on pve-node1: pct set 102 --mp0 /mnt/nas/media,mp=/media,ro=0
+          then reboot CT102.
+      when: nfs_check.rc != 0
+
+# ─── Plex ─────────────────────────────────────────────────────────────────────
+- name: CT102 Media — install Plex
+  hosts: media
+  gather_facts: false
+
+  tasks:
+    - name: Add Plex GPG key
+      shell: |
+        curl -fsSL https://downloads.plex.tv/plex-keys/PlexSign.key \
+          | gpg --dearmor -o /usr/share/keyrings/plex.gpg
+      args:
+        creates: /usr/share/keyrings/plex.gpg
+
+    - name: Add Plex repository
+      copy:
+        dest: /etc/apt/sources.list.d/plexmediaserver.list
+        content: |
+          deb [signed-by=/usr/share/keyrings/plex.gpg] https://downloads.plex.tv/repo/deb public main
+
+    - name: Install Plex Media Server
+      apt:
+        name: plexmediaserver
+        update_cache: true
+        state: present
+
+    - name: Add plex user to video group
+      user:
+        name: plex
+        groups: video
+        append: true
+
+    - name: Enable and start Plex
+      systemd:
+        name: plexmediaserver
+        enabled: true
+        state: started
+
+# ─── Navidrome ────────────────────────────────────────────────────────────────
+- name: CT102 Media — install Navidrome
+  hosts: media
+  gather_facts: false
+
+  vars:
+    navidrome_version: "0.53.3"
+    navidrome_user: navidrome
+    install_dir: /opt/navidrome
+    data_dir: /var/lib/navidrome
+    music_dir: /media/music
+
+  tasks:
+    - name: Create navidrome system user
+      user:
+        name: "{{ navidrome_user }}"
+        system: true
+        shell: /sbin/nologin
+        home: "{{ install_dir }}"
+        create_home: false
+
+    - name: Create directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ navidrome_user }}"
+        group: "{{ navidrome_user }}"
+        mode: '0755'
+      loop:
+        - "{{ install_dir }}"
+        - "{{ data_dir }}"
+
+    - name: Download and extract Navidrome
+      unarchive:
+        src: "https://github.com/navidrome/navidrome/releases/download/v{{ navidrome_version }}/navidrome_{{ navidrome_version }}_linux_amd64.tar.gz"
+        dest: "{{ install_dir }}"
+        remote_src: true
+        owner: "{{ navidrome_user }}"
+        group: "{{ navidrome_user }}"
+        creates: "{{ install_dir }}/navidrome"
+
+    - name: Write Navidrome config
+      copy:
+        dest: "{{ install_dir }}/navidrome.toml"
+        owner: "{{ navidrome_user }}"
+        group: "{{ navidrome_user }}"
+        content: |
+          MusicFolder = "{{ music_dir }}"
+          DataFolder   = "{{ data_dir }}"
+          Address      = "0.0.0.0"
+          Port         = 4533
+          LogLevel     = "info"
+      notify: restart navidrome
+
+    - name: Create Navidrome systemd service
+      copy:
+        dest: /etc/systemd/system/navidrome.service
+        content: |
+          [Unit]
+          Description=Navidrome Music Server
+          After=network.target
+
+          [Service]
+          User={{ navidrome_user }}
+          WorkingDirectory={{ install_dir }}
+          ExecStart={{ install_dir }}/navidrome --configfile {{ install_dir }}/navidrome.toml
+          Restart=on-failure
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: restart navidrome
+
+    - name: Enable and start Navidrome
+      systemd:
+        name: navidrome
+        enabled: true
+        state: started
+        daemon_reload: true
+
+# ─── iSponsorBlockTV (Docker) ─────────────────────────────────────────────────
+- name: CT102 Media — install iSponsorBlockTV
+  hosts: media
+  gather_facts: false
+
+  vars:
+    config_dir: /opt/isponsorblock
+
+  tasks:
+    - name: Install Docker prerequisites
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg2
+        state: present
+
+    - name: Add Docker GPG key
+      shell: |
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/debian/gpg \
+          | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      args:
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Add Docker repository
+      shell: |
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+        https://download.docker.com/linux/debian \
+        $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+        > /etc/apt/sources.list.d/docker.list
+      args:
+        creates: /etc/apt/sources.list.d/docker.list
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        update_cache: true
+        state: present
+
+    - name: Enable Docker
+      systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Create iSponsorBlockTV config directory
+      file:
+        path: "{{ config_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Write docker-compose.yml
+      copy:
+        dest: "{{ config_dir }}/docker-compose.yml"
+        content: |
+          services:
+            isponsorblock:
+              image: ghcr.io/dmunozv04/isponsorblock:latest
+              container_name: isponsorblock
+              restart: unless-stopped
+              network_mode: host
+              volumes:
+                - ./config:/app/config
+
+    - name: Pull and start iSponsorBlockTV
+      community.docker.docker_compose_v2:
+        project_src: "{{ config_dir }}"
+        pull: always
+        state: present
+
+  handlers:
+    - name: restart navidrome
+      systemd:
+        name: navidrome
+        state: restarted
