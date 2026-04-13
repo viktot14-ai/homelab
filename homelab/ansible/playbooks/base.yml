@@ -1,0 +1,171 @@
+---
+# playbooks/base.yml
+# Base configuration applied to all LXC containers
+# Usage: ansible-playbook -i inventory/hosts.ini playbooks/base.yml
+
+- name: Base LXC setup
+  hosts: lxc
+  gather_facts: true
+
+  vars:
+    base_packages:
+      - curl
+      - ca-certificates
+      - wget
+      - gnupg2
+      - vim
+      - less
+      - htop
+      - rsync
+      - unattended-upgrades
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install base packages
+      apt:
+        name: "{{ base_packages }}"
+        state: present
+
+    - name: Set timezone to Europe/Minsk
+      timezone:
+        name: Europe/Minsk
+
+    - name: Configure unattended security upgrades
+      copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+          APT::Periodic::Download-Upgradeable-Packages "1";
+          APT::Periodic::AutocleanInterval "7";
+
+    - name: Disable password SSH auth
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+      notify: restart sshd
+
+    - name: Install node_exporter for Prometheus
+      block:
+        - name: Download node_exporter
+          get_url:
+            url: "https://github.com/prometheus/node_exporter/releases/download/v1.8.2/node_exporter-1.8.2.linux-amd64.tar.gz"
+            dest: /tmp/node_exporter.tar.gz
+
+        - name: Extract node_exporter
+          unarchive:
+            src: /tmp/node_exporter.tar.gz
+            dest: /tmp/
+            remote_src: true
+
+        - name: Install node_exporter binary
+          copy:
+            src: /tmp/node_exporter-1.8.2.linux-amd64/node_exporter
+            dest: /usr/local/bin/node_exporter
+            mode: '0755'
+            remote_src: true
+
+        - name: Create node_exporter systemd service
+          copy:
+            dest: /etc/systemd/system/node_exporter.service
+            content: |
+              [Unit]
+              Description=Prometheus Node Exporter
+              After=network.target
+
+              [Service]
+              Type=simple
+              ExecStart=/usr/local/bin/node_exporter
+              Restart=on-failure
+
+              [Install]
+              WantedBy=multi-user.target
+
+        - name: Enable and start node_exporter
+          systemd:
+            name: node_exporter
+            enabled: true
+            state: started
+            daemon_reload: true
+
+    - name: Install promtail for Loki log shipping
+      block:
+        - name: Download promtail
+          get_url:
+            url: "https://github.com/grafana/loki/releases/download/v3.1.0/promtail-linux-amd64.zip"
+            dest: /tmp/promtail.zip
+
+        - name: Install unzip
+          apt:
+            name: unzip
+            state: present
+
+        - name: Extract promtail
+          unarchive:
+            src: /tmp/promtail.zip
+            dest: /usr/local/bin/
+            remote_src: true
+
+        - name: Set promtail executable
+          file:
+            path: /usr/local/bin/promtail-linux-amd64
+            mode: '0755'
+
+        - name: Create promtail config
+          copy:
+            dest: /etc/promtail-config.yaml
+            content: |
+              server:
+                http_listen_port: 9080
+                grpc_listen_port: 0
+
+              positions:
+                filename: /tmp/positions.yaml
+
+              clients:
+                - url: http://192.168.0.103:3100/loki/api/v1/push
+
+              scrape_configs:
+                - job_name: systemd
+                  journal:
+                    max_age: 12h
+                    labels:
+                      job: systemd
+                      host: {{ inventory_hostname }}
+                  relabel_configs:
+                    - source_labels: ['__journal__systemd_unit']
+                      target_label: unit
+
+        - name: Create promtail systemd service
+          copy:
+            dest: /etc/systemd/system/promtail.service
+            content: |
+              [Unit]
+              Description=Promtail (Loki log shipper)
+              After=network.target
+
+              [Service]
+              Type=simple
+              ExecStart=/usr/local/bin/promtail-linux-amd64 -config.file=/etc/promtail-config.yaml
+              Restart=on-failure
+
+              [Install]
+              WantedBy=multi-user.target
+
+        - name: Enable and start promtail
+          systemd:
+            name: promtail
+            enabled: true
+            state: started
+            daemon_reload: true
+
+  handlers:
+    - name: restart sshd
+      service:
+        name: sshd
+        state: restarted

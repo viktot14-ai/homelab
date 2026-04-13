@@ -1,0 +1,11 @@
+---
+# playbooks/site.yml
+# Full homelab provisioning
+# Usage: ansible-playbook -i inventory/hosts.ini playbooks/site.yml
+
+- import_playbook: base.yml
+
+# Service-specific playbooks (add as you build them out)
+# - import_playbook: adguard.yml
+# - import_playbook: traefik.yml
+# - import_playbook: monitoring.yml
