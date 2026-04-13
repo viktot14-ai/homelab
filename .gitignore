@@ -1,0 +1,17 @@
+*.env
+.env.*
+secrets/
+*.local
+*.secret
+AdGuardHome.yaml.bak
+**/config.yml.bak
+*.vma
+*.vma.zst
+*.tar.zst
+vault_pass.txt
+.vault_pass
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
