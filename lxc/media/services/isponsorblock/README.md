@@ -1,8 +1,8 @@
 # iSponsorBlockTV
 
 **LXC:** Media (CT102)  
-**IP:** 192.168.0.102  
-**Web UI:** http://192.168.0.102:8080  
+**IP:** 192.168.0.104  
+**Web UI:** http://192.168.0.104:8080  
 **Запуск:** Docker внутри LXC  
 
 ## Назначение
@@ -25,7 +25,7 @@ bash install.sh
 
 1. Установить **iSponsorBlockTV** из App Store на Apple TV
 2. Открыть Settings → Server
-3. Указать: `http://192.168.0.102:8080`
+3. Указать: `http://192.168.0.104:8080`
 
 ## Управление
 

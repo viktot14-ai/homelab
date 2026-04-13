@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # install.sh — Plex Media Server
-# LXC: Media (CT102), Debian 12, 192.168.0.102
+# LXC: Media (CT102), Debian 12, 192.168.0.104
 # Usage: bash install.sh
 set -euo pipefail
 
@@ -35,7 +35,7 @@ echo ""
 echo "✓ Plex installed."
 echo ""
 echo "  Web UI (first-run setup, run from LAN):"
-echo "  http://192.168.0.102:32400/web"
+echo "  http://192.168.0.104:32400/web"
 echo ""
 echo "  Media library path inside container: /media"
 echo "  Make sure NFS bind-mount is active on the host:"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # install.sh — Navidrome music server
-# LXC: Media (CT102), Debian 12, 192.168.0.102
+# LXC: Media (CT102), Debian 12, 192.168.0.104
 # Usage: bash install.sh
 set -euo pipefail
 
@@ -61,6 +61,6 @@ systemctl start navidrome
 
 echo ""
 echo "✓ Navidrome installed."
-echo "  Web UI: http://192.168.0.102:4533"
+echo "  Web UI: http://192.168.0.104:4533"
 echo "  Music folder: ${MUSIC_DIR}"
 echo "  First login: создай admin-аккаунт через Web UI"
