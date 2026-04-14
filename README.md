@@ -223,15 +223,6 @@ services/<name>/
 
 ## Projects
 
-### 🔥 Fire Training Simulator
-
-Multi-panel training simulator for emergency response exercises, built on ESP32:
-- WS2812B LED indication
-- IR sensors
-- ESP-NOW mesh
-- web management interface
-
-→ [`projects/fire-simulator/`](./projects/fire-simulator/)
 
 ---
 
