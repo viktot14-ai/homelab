@@ -1,6 +1,10 @@
 # homelab
 
-Personal infrastructure built on **Proxmox VE**.  
+![status](https://img.shields.io/badge/status-active-blue)
+![proxmox](https://img.shields.io/badge/platform-proxmox-orange)
+![license](https://img.shields.io/badge/license-MIT-green)
+
+Personal self-hosted infrastructure platform built on **Proxmox VE**.  
 Self-hosted services, monitoring, controlled external access, and a gradual move toward Kubernetes.
 
 > This is not just a collection of containers.  
@@ -53,6 +57,32 @@ I try to:
 - avoid "magic" solutions that nobody understands later
 - keep control over what reaches the internet and how
 - document everything important (runbooks)
+
+---
+
+## Scope
+
+This repository includes:
+- LXC container provisioning
+- service installation scripts
+- operational runbooks
+
+Not included (yet):
+- full Proxmox provisioning (planned)
+- network device configuration
+
+---
+
+## Reproducibility
+
+The goal is to achieve full reproducibility.
+
+Currently:
+- LXC containers are created via scripts
+- services are installed via idempotent installers
+
+Planned:
+- full infrastructure bootstrap (Ansible / Terraform)
 
 ---
 
@@ -156,6 +186,8 @@ All dashboards are stored as JSON in [`lxc/monitoring/`](./lxc/monitoring/).
 - unprivileged LXC containers throughout
 - AdGuard Home blocks tracking/malware at DNS level
 - Syncthing + Vaultwarden behind HTTPS only
+- no secrets stored in repository
+- access to internal services restricted by network boundaries
 
 ### Planned
 
