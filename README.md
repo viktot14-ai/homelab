@@ -63,10 +63,10 @@ Internet
 │
 MikroTik hEX S (static IP, NAT, firewall)
 │
-TP-Link SG108PE (switch)
+TP-Link SG108E (switch)
 ├── Proxmox pve-node1 (192.168.0.65)
 │       ├── CT101 Edge        → Traefik (sole internet-facing container)
-│       ├── CT102 Media       → Plex, Navidrome
+│       ├── CT102 Media       → Plex, Navidrome, Tautulli
 │       ├── CT103 Monitoring  → Grafana, Loki, Prometheus
 │       ├── CT104 Automation  → n8n
 │       ├── CT105 Security    → Vaultwarden, SearxNG
@@ -88,9 +88,9 @@ All services run in **unprivileged LXC containers**.
 | CTID | Role | IP | Services | Notes |
 |------|------|----|----------|-------|
 | 101 | Edge | 192.168.0.101 | Traefik | single entry point |
-| 102 | Media | 192.168.0.102 | Plex, Navidrome, iSponsorBlockTV | NFS access |
+| 102 | Media | 192.168.0.104 | Plex, Navidrome, iSponsorBlockTV, Tautulli | NFS access |
 | 103 | Monitoring | 192.168.0.103 | Grafana, Loki, Prometheus, NetAlertX | observability |
-| 104 | Automation | 192.168.0.104 | n8n | isolated for safe updates |
+| 104 | Automation | 192.168.0.102 | n8n | isolated for safe updates |
 | 105 | Security | 192.168.0.105 | Vaultwarden, SearxNG | HTTPS only |
 | 106 | Utility | 192.168.0.106 | AdGuard Home, Syncthing, Homarr | boots first |
 | 107 | Radio | 192.168.0.107 | Asterisk, Kismet | isolated workload |
