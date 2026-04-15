@@ -108,6 +108,30 @@ TP-Link SG108E (switch)
 ```
 
 Key idea: **only one container faces the internet.**
+---
+
+## Hardware
+
+This setup is intentionally built around **cost-efficient and low-power hardware**.
+
+### Principles
+
+- avoid enterprise hardware where it's not needed
+- prioritize power efficiency (24/7 operation)
+- use widely available second-hand equipment
+- keep replacement cost low
+
+### Current hardware
+
+- HP EliteDesk 800 G4 (i5-8500T, 16GB RAM)
+- Synology DS223J (storage via NFS)
+- MikroTik hEX S (routing, firewall)
+- TP-Link AX55 + AX12 (Wi-Fi)
+
+### Why this matters
+
+The goal is not maximum performance, but **predictable and maintainable infrastructure**  
+within real-world constraints (budget, power, noise).
 
 ---
 
