@@ -279,7 +279,17 @@ services/<name>/
 
 ## Projects
 
+## Projects
 
+### Labrax
+
+A 3D-printed 10" rack designed for this homelab.
+
+- compact form factor for home use
+- designed with airflow and cable management in mind
+- built to keep the setup organized and easy to maintain
+
+This is an attempt to bring the same ideas from software (structure, clarity, modularity) into physical infrastructure.
 ---
 
 ## Roadmap
