@@ -223,6 +223,15 @@ services/<n>/
 
 ## Проекты
 
+### 🔥 Fire Training Simulator
+
+Система для тренировок МЧС на базе ESP32:
+- LED индикация (WS2812B)
+- ИК-сенсоры
+- ESP-NOW mesh
+- web-интерфейс управления
+
+→ [`projects/fire-simulator/`](./projects/fire-simulator/)
 
 ---
 
@@ -258,4 +267,4 @@ Proxmox · LXC · MikroTik · Synology · Traefik · Grafana · Loki · Promethe
 
 ---
 
-*viktot14 · Minsk, Belarus*
+*Viktor · Minsk, Belarus*

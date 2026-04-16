@@ -1,10 +1,6 @@
 # homelab
 
-![status](https://img.shields.io/badge/status-active-blue)
-![proxmox](https://img.shields.io/badge/platform-proxmox-orange)
-![license](https://img.shields.io/badge/license-MIT-green)
-
-Personal self-hosted infrastructure platform built on **Proxmox VE**.  
+Personal infrastructure built on **Proxmox VE**.  
 Self-hosted services, monitoring, controlled external access, and a gradual move toward Kubernetes.
 
 > This is not just a collection of containers.  
@@ -60,32 +56,6 @@ I try to:
 
 ---
 
-## Scope
-
-This repository includes:
-- LXC container provisioning
-- service installation scripts
-- operational runbooks
-
-Not included (yet):
-- full Proxmox provisioning (planned)
-- network device configuration
-
----
-
-## Reproducibility
-
-The goal is to achieve full reproducibility.
-
-Currently:
-- LXC containers are created via scripts
-- services are installed via idempotent installers
-
-Planned:
-- full infrastructure bootstrap (Ansible / Terraform)
-
----
-
 ## Architecture
 
 ```
@@ -93,10 +63,10 @@ Internet
 │
 MikroTik hEX S (static IP, NAT, firewall)
 │
-TP-Link SG108E (switch)
+TP-Link SG108PE (switch)
 ├── Proxmox pve-node1 (192.168.0.65)
 │       ├── CT101 Edge        → Traefik (sole internet-facing container)
-│       ├── CT102 Media       → Plex, Navidrome, Tautulli
+│       ├── CT102 Media       → Plex, Navidrome
 │       ├── CT103 Monitoring  → Grafana, Loki, Prometheus
 │       ├── CT104 Automation  → n8n
 │       ├── CT105 Security    → Vaultwarden, SearxNG
@@ -108,30 +78,6 @@ TP-Link SG108E (switch)
 ```
 
 Key idea: **only one container faces the internet.**
----
-
-## Hardware
-
-This setup is intentionally built around **cost-efficient and low-power hardware**.
-
-### Principles
-
-- avoid enterprise hardware where it's not needed
-- prioritize power efficiency (24/7 operation)
-- use widely available second-hand equipment
-- keep replacement cost low
-
-### Current hardware
-
-- HP EliteDesk 800 G4 (i5-8500T, 16GB RAM)
-- Synology DS223J (storage via NFS)
-- MikroTik hEX S (routing, firewall)
-- TP-Link AX55 + AX12 (Wi-Fi)
-
-### Why this matters
-
-The goal is not maximum performance, but **predictable and maintainable infrastructure**  
-within real-world constraints (budget, power, noise).
 
 ---
 
@@ -142,9 +88,9 @@ All services run in **unprivileged LXC containers**.
 | CTID | Role | IP | Services | Notes |
 |------|------|----|----------|-------|
 | 101 | Edge | 192.168.0.101 | Traefik | single entry point |
-| 102 | Media | 192.168.0.104 | Plex, Navidrome, iSponsorBlockTV, Tautulli | NFS access |
+| 102 | Media | 192.168.0.102 | Plex, Navidrome, iSponsorBlockTV | NFS access |
 | 103 | Monitoring | 192.168.0.103 | Grafana, Loki, Prometheus, NetAlertX | observability |
-| 104 | Automation | 192.168.0.102 | n8n | isolated for safe updates |
+| 104 | Automation | 192.168.0.104 | n8n | isolated for safe updates |
 | 105 | Security | 192.168.0.105 | Vaultwarden, SearxNG | HTTPS only |
 | 106 | Utility | 192.168.0.106 | AdGuard Home, Syncthing, Homarr | boots first |
 | 107 | Radio | 192.168.0.107 | Asterisk, Kismet | isolated workload |
@@ -210,8 +156,6 @@ All dashboards are stored as JSON in [`lxc/monitoring/`](./lxc/monitoring/).
 - unprivileged LXC containers throughout
 - AdGuard Home blocks tracking/malware at DNS level
 - Syncthing + Vaultwarden behind HTTPS only
-- no secrets stored in repository
-- access to internal services restricted by network boundaries
 
 ### Planned
 
@@ -279,17 +223,16 @@ services/<name>/
 
 ## Projects
 
-## Projects
+### 🔥 Fire Training Simulator
 
-### Labrax
+Multi-panel training simulator for emergency response exercises, built on ESP32:
+- WS2812B LED indication
+- IR sensors
+- ESP-NOW mesh
+- web management interface
 
-A 3D-printed 10" rack designed for this homelab.
+→ [`projects/fire-simulator/`](./projects/fire-simulator/)
 
-- compact form factor for home use
-- designed with airflow and cable management in mind
-- built to keep the setup organized and easy to maintain
-
-This is an attempt to bring the same ideas from software (structure, clarity, modularity) into physical infrastructure.
 ---
 
 ## Roadmap
@@ -324,4 +267,4 @@ Proxmox · LXC · MikroTik · Synology · Traefik · Grafana · Loki · Promethe
 
 ---
 
-*viktot14 · Minsk, Belarus*
+*Viktor · Minsk, Belarus*
