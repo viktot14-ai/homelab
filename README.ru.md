@@ -76,7 +76,8 @@ TP-Link SG108PE (свитч)
 │       ├── CT108 Lab         → эксперименты
 │       ├── CT109 Claude      → Claude Code (через Openrouter)
 │       ├── CT113 dawarich
-│       └── CT115 uptimekuma   
+│       ├── CT115 uptimekuma   
+│       └── CT116 stirlingpdf   
 ├── Proxmox pve-node2 (192.168.0.17)
 │       ├── CT110 postgresql
 │       ├── CT111 hermes
@@ -114,6 +115,7 @@ TP-Link SG108PE (свитч)
 | 112 | ollama | 192.168.0.191 | разработка | имеет доступ к Lab, postgresql|
 | 114 | librechat | 192.168.0.92 | разработка | имеет доступ к Lab, postgresql|
 | 115 | uptimekuma | 192.168.0.247 | uptimekuma | мониторинг сервисов |
+| 116 | stirlingpdf | 192.168.0.127 | stirlingpdf | работа с pdf |
 | 200 | openhands | 192.168.0.116 | разработка | имеет доступ к Lab, postgresql|
 
 ### Почему так
