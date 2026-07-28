@@ -65,14 +65,25 @@ MikroTik hEX S (статический IP, NAT, firewall)
 │
 TP-Link SG108PE (свитч)
 ├── Proxmox pve-node1 (192.168.0.65)
+│       ├── CT100 Speedtest-tracker        
 │       ├── CT101 Edge        → Traefik (единственный смотрит наружу)
 │       ├── CT102 Media       → Plex, Navidrome
 │       ├── CT103 Monitoring  → Grafana, Loki, Prometheus
 │       ├── CT104 Automation  → n8n
 │       ├── CT105 Security    → Vaultwarden, SearxNG
 │       ├── CT106 Utility     → AdGuard Home, Syncthing, Homarr
-│       ├── CT107 Radio       → Asterisk, Kismet
-│       └── CT108 Lab         → эксперименты
+│       ├── CT107 Photo       → Immich
+│       ├── CT108 Lab         → эксперименты
+│       ├── CT109 Claude      → Claude Code (через Openrouter)
+│       ├── CT113 dawarich
+│       └── CT115 uptimekuma   
+├── Proxmox pve-node2 (192.168.0.17)
+│       ├── CT110 postgresql
+│       ├── CT111 hermes
+│       ├── CT112 ollama
+│       ├── CT114 librechat
+│       └── CT200 openhands
+├── Proxmox backup server (192.168.0.100)
 ├── Synology DS223J (192.168.0.20) ← NFS
 └── Wi-Fi: Archer AX55 + AX12
 ```
@@ -86,15 +97,24 @@ TP-Link SG108PE (свитч)
 Все сервисы разнесены по **unprivileged LXC контейнерам**.
 
 | CTID | Роль | IP | Сервисы | Комментарий |
-|------|------|----|---------|-------------|
+|------|------|----|---------|-------------| 
+| 100 | Speedtest-tracker | 192.168.0.75 | Speedtest | автопроверка скорости интернета |
 | 101 | Edge | 192.168.0.101 | Traefik | единственная точка входа |
-| 102 | Media | 192.168.0.102 | Plex, Navidrome, iSponsorBlockTV | работает с NFS |
+| 102 | Media | 192.168.0.104 | Plex, Navidrome, iSponsorBlockTV | работает с NFS |
 | 103 | Monitoring | 192.168.0.103 | Grafana, Loki, Prometheus, NetAlertX | наблюдаемость |
-| 104 | Automation | 192.168.0.104 | n8n | изолирован для обновлений |
-| 105 | Security | 192.168.0.105 | Vaultwarden, SearxNG | только через HTTPS |
-| 106 | Utility | 192.168.0.106 | AdGuard Home, Syncthing, Homarr | базовые сервисы, стартует первым |
-| 107 | Radio | 192.168.0.107 | Asterisk, Kismet | отдельная нагрузка |
+| 104 | Automation | 192.168.0.150 | n8n | изолирован для обновлений |
+| 105 | Security | 192.168.0.64 | Vaultwarden, SearxNG | только через HTTPS |
+| 106 | Utility | 192.168.0.106 | AdGuard Home, Syncthing, Homarr, Omniroute, Koffan | базовые сервисы, стартует первым |
+| 107 | Photo | 192.168.0.233 | Immich | отдельная нагрузка |
 | 108 | Lab | 192.168.0.108 | любые эксперименты | можно ломать |
+| 109 | claude | 192.168.0.76 | разработка | имеет доступ ко всему хосту |
+| 110 | postgresql | 192.168.0.9 | база данных для ИИ | имеют доступ Claude, Hermes, Ollama |
+| 111 | hermes | 192.168.0.111 | разработка | имеет доступ к Lab, postgresql|
+| 113 | dawarich | 192.168.0.77 | dawarich | геоданные |
+| 112 | ollama | 192.168.0.191 | разработка | имеет доступ к Lab, postgresql|
+| 114 | librechat | 192.168.0.92 | разработка | имеет доступ к Lab, postgresql|
+| 115 | uptimekuma | 192.168.0.247 | uptimekuma | мониторинг сервисов |
+| 200 | openhands | 192.168.0.116 | разработка | имеет доступ к Lab, postgresql|
 
 ### Почему так
 
