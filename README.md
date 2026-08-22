@@ -71,22 +71,28 @@ Internet
 MikroTik hEX S (static IP, NAT, firewall)
 │
 TP-Link SG108E (switch)
-├── pve-node1 (192.168.0.65) — HP EliteDesk 800 G4 (i5-8500T, 16GB)
+├── pve-node1 (192.168.0.65) — HP EliteDesk 800 G4 (i5-8500T, 16GB) — Proxmox VE 9.2.11
 │       ├── CT101 Edge        → Traefik (sole internet-facing container)
-│       ├── CT102 Media       → Plex, Navidrome, Tautulli, inpx-web, iSponsorBlockTV
-│       ├── CT103 Monitoring  → Grafana, Loki, Prometheus, NetAlertX
+│       ├── CT102 Media       → inpx-web
 │       ├── CT104 Automation  → n8n
-│       ├── CT105 Security    → Vaultwarden, SearxNG
 │       ├── CT106 Utility     → AdGuard Home, Syncthing, Homarr, Docker, Gitea
-│       ├── CT107 Radio       → Asterisk, Kismet
+│       ├── CT107 Photo       → Immich
 │       ├── CT108 Lab         → experiments
 │       ├── CT109 AI          → Claude Code / OpenHands
 │       ├── CT110 Database    → PostgreSQL 16
 │       ├── CT111 AI          → Hermes Agent
+│       ├── CT113 Productivity → Dawarich (location tracking)
 │       ├── CT114 AI          → LibreChat
-│       └── CT118 AI          → LiteLLM proxy
+│       ├── CT115 Monitoring  → Uptime Kuma
+│       ├── CT116 Productivity → Stirling-PDF
+│       ├── CT117 Productivity → Paperless-ngx
+│       ├── CT118 AI          → LiteLLM proxy
+│       ├── CT119 Media       → Plex
+│       ├── CT120 Monitoring  → Tautulli
+│       ├── CT121 Productivity → Monica (personal CRM)
+│       └── CT122 RVS
 │
-├── pve-node2 (192.168.0.17) — HP EliteDesk 800 G4 (i5-8500T, 32GB)
+├── pve-node2 (192.168.0.17) — HP EliteDesk 800 G4 (i5-8500T, 32GB) — Proxmox VE 9.1.1
 │       ├── CT112 AI          → Ollama + RTX 3060 12GB GPU
 │       └── VM200             → Bazzite (GPU passthrough, gaming)
 │
@@ -96,6 +102,9 @@ TP-Link SG108E (switch)
 
 Key idea: **only one container faces the internet.**
 
+> **Note:** All LXC container IPs are assigned via **DHCP** and may change.
+> IPs listed below were verified on 2026-08-22.
+
 ---
 
 ## Hardware
@@ -104,12 +113,14 @@ Key idea: **only one container faces the internet.**
 - HP EliteDesk 800 G4 DM (i5-8500T, 16 GB RAM)
 - 256 GB NVMe (local-lvm)
 - 24/7 low-power operation
+- Proxmox VE 9.2.11
 
 ### pve-node2 (192.168.0.17)
 - HP EliteDesk 800 G4 (i5-8500T, 32 GB RAM)
 - 512 GB SSD
 - NVIDIA RTX 3060 12 GB (GPU passthrough to CT112 / VM200)
 - gpu-switch script for switching GPU between LXC and VM
+- Proxmox VE 9.1.1
 
 ### Network
 - MikroTik hEX S (routing, firewall, WireGuard VPN)
@@ -122,23 +133,32 @@ Key idea: **only one container faces the internet.**
 ## LXC Segmentation
 
 All services run in **unprivileged LXC containers**.
+20 containers across 2 nodes — all on node1 except CT112 (node2).
 
 | CTID | Role | IP | Node | Services | Notes |
 |------|------|----|------|----------|-------|
 | 101 | Edge | .101 | 1 | Traefik | single entry point |
-| 102 | Media | .102 | 1 | Plex, Tautulli, inpx-web, Navidrome, iSponsorBlockTV | NFS access |
-| 103 | Monitoring | .103 | 1 | Grafana, Loki, Prometheus, NetAlertX | observability |
-| 104 | Automation | .104 | 1 | n8n | isolated for safe updates |
-| 105 | Security | .105 | 1 | Vaultwarden, SearxNG | HTTPS only |
+| 102 | Media | .176 | 1 | inpx-web | NFS access |
+| 104 | Automation | .150 | 1 | n8n | isolated for safe updates |
 | 106 | Utility | .106 | 1 | AdGuard Home, Syncthing, Homarr, Docker, Gitea | boots first |
-| 107 | Radio | .107 | 1 | Asterisk, Kismet | isolated workload |
-| 108 | Lab | .108 | 1 | experiments | safe to break |
-| 109 | AI | .109 | 1 | Claude Code / OpenHands | coding agent |
-| 110 | Database | .110 | 1 | PostgreSQL 16 | shared DB |
+| 107 | Photo | .233 | 1 | Immich | photo management |
+| 108 | Lab | .99 | 1 | experiments | safe to break |
+| 109 | AI | .76 | 1 | Claude Code / OpenHands | coding agent |
+| 110 | Database | .9 | 1 | PostgreSQL 16 | shared DB |
 | 111 | AI | .111 | 1 | Hermes Agent | automation |
-| 112 | AI | .112 | 2 | Ollama | GPU: RTX 3060 12GB |
-| 114 | AI | .114 | 1 | LibreChat | LLM web UI |
-| 118 | AI | .118 | 1 | LiteLLM | LLM proxy |
+| 112 | AI | .191 | 2 | Ollama | GPU: RTX 3060 12GB |
+| 113 | Productivity | .77 | 1 | Dawarich | location tracking, integrates with Immich |
+| 114 | AI | .92 | 1 | LibreChat | LLM web UI |
+| 115 | Monitoring | .247 | 1 | Uptime Kuma | uptime monitoring |
+| 116 | Productivity | .127 | 1 | Stirling-PDF | PDF tools |
+| 117 | Productivity | .137 | 1 | Paperless-ngx | document management |
+| 118 | AI | .188 | 1 | LiteLLM | LLM proxy |
+| 119 | Media | .199 | 1 | Plex | media server |
+| 120 | Monitoring | .205 | 1 | Tautulli | Plex analytics |
+| 121 | Productivity | .7 | 1 | Monica | personal CRM |
+| 122 | RVS | .122 | 1 | — | — |
+
+> All IPs are **DHCP-assigned** — verify before connecting.
 
 ### VMs
 
@@ -204,12 +224,10 @@ Unprivileged LXC requires permission fixes — see [runbook: NFS + LXC](./runboo
 
 ## Observability
 
-Stack: **Grafana · Loki · Prometheus · NetAlertX**
+Stack: **Uptime Kuma · Tautulli**
 
-- **Prometheus** — metrics scraping (node_exporter on each LXC)
-- **Loki + Promtail** — log aggregation from all containers
-- **Grafana** — dashboards: system, NFS, DNS, traffic
-- **NetAlertX** — network device discovery, new host alerts
+- **Uptime Kuma** (CT115) — uptime monitoring for all homelab services
+- **Tautulli** (CT120) — Plex media server analytics
 
 ---
 
@@ -236,21 +254,21 @@ homelab/
 ├── scripts/
 │   └── deploy.sh                    # create all LXC containers (2 nodes)
 ├── ansible/
-│   ├── inventory/hosts.ini          # all CTs + both nodes
+│   ├── inventory/hosts.ini          # all CTs + both nodes (DHCP IPs)
 │   └── playbooks/
 │       ├── site.yml                 # full playbook
 │       ├── base.yml                 # base LXC setup
 │       └── media.yml                # CT102 media services
 ├── lxc/
 │   ├── edge/services/traefik/
-│   ├── media/services/{plex,navidrome,tautulli,isponsorblock}/
-│   ├── monitoring/services/{grafana,loki,prometheus,netalertx}/
+│   ├── media/services/{inpx-web,plex,tautulli}/
+│   ├── monitoring/services/uptime-kuma/
 │   ├── automation/services/n8n/
-│   ├── security/services/{vaultwarden,searxng}/
 │   ├── utility/services/{adguard,syncthing,homarr,docker,gitea}/
-│   ├── radio/services/{asterisk,kismet}/
+│   ├── photo/services/immich/
 │   ├── ai/services/{ollama,hermes,librechat,litellm,claude-code}/
 │   ├── databases/services/postgres/
+│   ├── productivity/services/{dawarich,stirling-pdf,paperless-ngx,monica}/
 │   └── lab/
 ├── runbooks/
 │   └── ru/
@@ -277,7 +295,6 @@ homelab/
 **Near-term**
 - [ ] Traefik + Let's Encrypt finalization
 - [ ] Authelia + CrowdSec
-- [ ] Immich (photo management)
 
 **Long-term**
 - [ ] k3s cluster on Proxmox
@@ -288,7 +305,7 @@ homelab/
 
 ## Stack
 
-Proxmox · LXC · MikroTik · Synology · Traefik · Grafana · Loki · Prometheus · AdGuard Home · Ollama · LiteLLM · LibreChat · Hermes Agent · PostgreSQL · Gitea · NVIDIA RTX 3060
+Proxmox · LXC · MikroTik · Synology · Traefik · AdGuard Home · Ollama · LiteLLM · LibreChat · Hermes Agent · PostgreSQL · Gitea · Immich · Dawarich · Uptime Kuma · Stirling-PDF · Paperless-ngx · Monica · Plex · Tautulli · NVIDIA RTX 3060
 
 ---
 

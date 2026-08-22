@@ -2,6 +2,9 @@
 # deploy.sh — provision all homelab LXC containers on Proxmox
 # Run on pve-node1 as root
 # Usage: bash scripts/deploy.sh [--dry-run] [--ctid 106] [--node 2]
+#
+# NOTE: IPs are DHCP — actual IPs may differ from those listed here.
+# Verify with: pct exec <CTID> -- ip -4 addr show eth0
 set -euo pipefail
 
 # ─── Config ────────────────────────────────────────────────────────────────────
@@ -17,32 +20,40 @@ FILTER_CTID=""
 FILTER_NODE=""
 
 # ─── Container definitions ─────────────────────────────────────────────────────
-# Format: "CTID:HOSTNAME:IP:CORES:RAM_MB:DISK_GB:UNPRIVILEGED:NODE:DESCRIPTION"
+# Format: "CTID:HOSTNAME:IP:DHCPCORES:RAM_MB:DISK_GB:UNPRIV:NODE:DESCRIPTION"
+# IP field is the expected DHCP address (may differ)
 # NODE: 1 = pve-node1 (.65), 2 = pve-node2 (.17)
 CONTAINERS=(
   # ── Edge ──
   "101:edge:192.168.0.101:1:512:4:1:1:Traefik reverse proxy"
   # ── Media ──
-  "102:media:192.168.0.102:2:2048:16:1:1:Plex, Navidrome, iSponsorBlockTV, inpx-web"
-  # ── Monitoring ──
-  "103:monitoring:192.168.0.103:2:1024:8:1:1:Grafana, Loki, Prometheus, NetAlertX"
+  "102:inpx-web:192.168.0.176:2:1024:8:1:1:inpx-web (Flibusta catalog)"
+  "119:plex:192.168.0.199:2:2048:16:1:1:Plex Media Server"
+  "120:tautulli:192.168.0.205:1:512:4:1:1:Tautulli (Plex monitoring)"
   # ── Automation ──
-  "104:automation:192.168.0.104:1:512:4:1:1:n8n"
-  # ── Security ──
-  "105:security:192.168.0.105:1:512:4:1:1:Vaultwarden, SearxNG"
+  "104:automation:192.168.0.150:1:512:4:1:1:n8n"
   # ── Utility ──
-  "106:utility:192.168.0.106:2:1024:16:1:1:AdGuard Home, Syncthing, Homarr, Docker, Gitea"
-  # ── Radio ──
-  "107:radio:192.168.0.107:1:512:8:1:1:Asterisk, Kismet"
-  # ── AI / LLM stack ──
-  "109:claude-code:192.168.0.109:2:2048:16:1:1:Claude Code / OpenHands agent"
-  "110:postgres:192.168.0.110:2:2048:16:1:1:PostgreSQL 16 (shared DB)"
-  "111:hermes:192.168.0.111:2:2048:16:1:1:Hermes Agent"
-  "112:ollama:192.168.0.112:4:8192:90:1:2:Ollama + RTX 3060 GPU passthrough"
-  "114:librechat:192.168.0.114:2:2048:8:1:1:LibreChat (OpenAI-compatible UI)"
-  "118:litellm:192.168.0.118:2:1024:8:1:1:LiteLLM proxy"
+  "106:utility:192.168.0.106:2:1024:16:1:1:AdGuard Home, Docker, Gitea, Homarr"
+  # ── Photo ──
+  "107:photo:192.168.0.233:2:2048:16:1:1:Immich (photo management)"
   # ── Lab ──
-  "108:lab:192.168.0.108:2:1024:8:1:1:Lab / experiments"
+  "108:lab:192.168.0.99:2:1024:8:1:1:Lab / experiments"
+  # ── AI / LLM stack ──
+  "109:claude:192.168.0.76:2:2048:16:1:1:OpenHands / Claude Code agent"
+  "110:postgresql:192.168.0.9:2:2048:16:1:1:PostgreSQL 16 (shared DB)"
+  "111:hermes:192.168.0.111:2:2048:16:1:1:Hermes Agent"
+  "112:ollama:192.168.0.191:4:8192:90:1:2:Ollama + RTX 3060 GPU passthrough"
+  "114:librechat:192.168.0.92:2:2048:8:1:1:LibreChat (OpenAI-compatible UI)"
+  "118:litellm:192.168.0.188:2:1024:8:1:1:LiteLLM proxy"
+  # ── Productivity ──
+  "113:dawarich:192.168.0.77:1:512:8:1:1:Dawarich (location tracking)"
+  "116:stirling-pdf:192.168.0.127:1:512:8:1:1:Stirling-PDF (PDF tools)"
+  "117:paperless-ngx:192.168.0.137:1:1024:16:1:1:Paperless-ngx (document mgmt)"
+  "121:monica:192.168.0.7:1:512:8:1:1:Monica (personal CRM)"
+  # ── Monitoring ──
+  "115:uptimekuma:192.168.0.247:1:512:4:1:1:Uptime Kuma"
+  # ── Work (non-homelab, private) ──
+  "122:rvs:192.168.0.122:2:2048:16:1:1:RVS (FastAPI+React+MSSQL)"
 )
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -66,6 +77,9 @@ Examples:
   bash scripts/deploy.sh --node 1         # only node1 containers
   bash scripts/deploy.sh --ctid 112       # only ollama container
   bash scripts/deploy.sh --dry-run        # preview what would happen
+
+NOTE: IPs are DHCP. Verify actual IP after creation:
+  pct exec <CTID> -- ip -4 addr show eth0
 EOF
   exit 0
 }
@@ -151,7 +165,7 @@ for entry in "${CONTAINERS[@]}"; do
     --rootfs ${STORAGE}:${DISK} \
     --cores ${CORES} \
     --memory ${RAM} \
-    --net0 name=eth0,bridge=${BRIDGE},ip=${IP}/24,gw=${GATEWAY} \
+    --net0 name=eth0,bridge=${BRIDGE},ip=dhcp \
     --nameserver ${DNS} \
     --searchdomain homelab.local \
     --ssh-public-keys ${SSH_KEYFILE} \
@@ -165,13 +179,18 @@ for entry in "${CONTAINERS[@]}"; do
     run "pct set ${CTID} --startup order=1,up=30"
   fi
 
-  # CT102 (media) — NFS bind mounts
-  if [[ "$CTID" == "102" ]]; then
-    log "Adding NFS bind mounts to CT102..."
+  # CT119 (plex) — NFS bind mounts
+  if [[ "$CTID" == "119" ]]; then
+    log "Adding NFS bind mounts to CT119..."
     run "pct set ${CTID} --mp0 /mnt/nas/movies,mp=/media/movies,ro=0"
     run "pct set ${CTID} --mp1 /mnt/nas/tv,mp=/media/tv,ro=0"
     run "pct set ${CTID} --mp2 /mnt/nas/music,mp=/media/music,ro=0"
-    run "pct set ${CTID} --mp3 /mnt/nas/books,mp=/media/books,ro=0"
+  fi
+
+  # CT102 (inpx-web) — NFS books mount
+  if [[ "$CTID" == "102" ]]; then
+    log "Adding NFS books mount to CT102..."
+    run "pct set ${CTID} --mp0 /mnt/nas/books,mp=/media/books,ro=0"
   fi
 
   # CT112 (ollama) — GPU passthrough (run on node2)
@@ -212,12 +231,8 @@ echo "════════════════════════�
 echo "  Created: ${CREATED}  |  Skipped: ${SKIPPED}"
 echo ""
 echo "  Next steps:"
-echo "  1. For each container, run its service installer:"
-echo "     cd lxc/<role>/services/<name> && bash install.sh"
-echo ""
-echo "  2. Or use Ansible (if configured):"
-echo "     ansible-playbook -i inventory/hosts.ini playbooks/site.yml"
-echo ""
-echo "  3. GPU: CT112 on node2 requires NVIDIA drivers + container toolkit"
-echo "     See runbooks/ru/gpu-passthrough.md"
+echo "  1. Verify DHCP IP: pct exec <CTID> -- ip -4 addr show eth0"
+echo "  2. Install services: cd lxc/<role>/services/<name> && bash install.sh"
+echo "  3. Or use Ansible: ansible-playbook -i inventory/hosts.ini playbooks/site.yml"
+echo "  4. GPU: CT112 on node2 needs NVIDIA drivers — see runbooks/ru/gpu-passthrough.md"
 echo "═══════════════════════════════════════════════════"
