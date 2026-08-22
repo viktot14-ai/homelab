@@ -1,7 +1,12 @@
 # homelab
 
-Личная инфраструктура на базе **Proxmox VE**.  
-Self-hosted сервисы, мониторинг, контролируемый доступ извне и постепенное движение в сторону Kubernetes.
+![status](https://img.shields.io/badge/status-active-blue)
+![proxmox](https://img.shields.io/badge/platform-proxmox-orange)
+![nodes](https://img.shields.io/badge/nodes-2-green)
+![gpu](https://img.shields.io/badge/GPU-RTX%203060-purple)
+
+Личная инфраструктура на базе **Proxmox VE** (2-нодный кластер).  
+Self-hosted сервисы, мониторинг, локальный LLM-инференс, AI-агенты, контролируемый доступ извне.
 
 > Это не просто набор контейнеров.  
 > Это попытка выстроить понятную и управляемую систему.
@@ -12,43 +17,41 @@ Self-hosted сервисы, мониторинг, контролируемый �
 
 ## Quick Start
 
-> Требования: нода Proxmox VE, Synology NAS по NFS, роутер MikroTik hEX S.
+> Требования: 2 ноды Proxmox VE, Synology NAS по NFS, роутер MikroTik hEX S.
 
 ```bash
 # 1. Клонировать репозиторий
-git clone https://github.com/youruser/homelab.git
+git clone https://github.com/viktot14-ai/homelab.git
 cd homelab
 
-# 2. Создать все LXC контейнеры
+# 2. Создать все LXC контейнеры (node1)
 bash scripts/deploy.sh
 
-# 3. Установить конкретный сервис (пример: AdGuard Home)
+# 3. Создать контейнеры node2
+bash scripts/deploy.sh --node 2
+
+# 4. Установить конкретный сервис (пример: AdGuard Home)
 cd lxc/utility/services/adguard
 bash install.sh
 ```
 
-Полная последовательность развёртывания:
-
 | Шаг | Скрипт / Runbook |
 |-----|-----------------|
-| Настройка ноды Proxmox (BIOS, репозитории, watchdog) | [runbook](./runbooks/ru/proxmox-node-setup.md) |
+| Настройка ноды Proxmox (BIOS, репозитории, watchdog) | *(WIP)* |
 | Создание всех LXC контейнеров | `bash scripts/deploy.sh` |
 | NFS монтирование + фикс прав | [runbook](./runbooks/ru/nfs-lxc-permissions.md) |
+| GPU проброс (RTX 3060 → CT112) | [runbook](./runbooks/ru/gpu-passthrough.md) |
 | Установка сервисов внутри контейнеров | `lxc/<role>/services/<n>/install.sh` |
-| Traefik + Let's Encrypt | [runbook](./runbooks/ru/traefik-setup.md) *(WIP)* |
+| Traefik + Let's Encrypt | *(WIP)* |
 
-> В каждой директории сервиса есть `install.sh` и `README.md`.  
 > Секреты (пароли, токены) **никогда** не хранятся в репо — см. `.gitignore`.
 
 ---
 
 ## Общая идея
 
-Этот homelab собирается вокруг простого принципа:
-
 > **система должна быть понятной, предсказуемой и воспроизводимой**
 
-Я стараюсь:
 - разделять сервисы по ролям
 - минимизировать «магические» решения
 - держать контроль над тем, что и как выходит в интернет
@@ -63,95 +66,125 @@ Internet
 │
 MikroTik hEX S (статический IP, NAT, firewall)
 │
-TP-Link SG108PE (свитч)
-├── Proxmox pve-node1 (192.168.0.65)
-│       ├── CT100 Speedtest-tracker        
-│       ├── CT101 Edge        → Traefik (единственный смотрит наружу)
-│       ├── CT102 Media       → Plex, Navidrome
-│       ├── CT103 Monitoring  → Grafana, Loki, Prometheus
+TP-Link SG108E (свитч)
+├── pve-node1 (192.168.0.65) — HP EliteDesk 800 G4 (i5-8500T, 16GB)
+│       ├── CT101 Edge        → Traefik (единственный контейнер наружу)
+│       ├── CT102 Media       → Plex, Navidrome, Tautulli, inpx-web, iSponsorBlockTV
+│       ├── CT103 Monitoring  → Grafana, Loki, Prometheus, NetAlertX
 │       ├── CT104 Automation  → n8n
 │       ├── CT105 Security    → Vaultwarden, SearxNG
-│       ├── CT106 Utility     → AdGuard Home, Syncthing, Homarr
-│       ├── CT107 Photo       → Immich
+│       ├── CT106 Utility     → AdGuard Home, Syncthing, Homarr, Docker, Gitea
+│       ├── CT107 Radio       → Asterisk, Kismet
 │       ├── CT108 Lab         → эксперименты
-│       ├── CT109 Claude      → Claude Code (через Openrouter)
-│       ├── CT113 dawarich
-│       ├── CT115 uptimekuma   
-│       ├── CT116 stirlingpdf   
-│       └── CT117 paperless-ngx   
-├── Proxmox pve-node2 (192.168.0.17)
-│       ├── CT110 postgresql
-│       ├── CT111 hermes
-│       ├── CT112 ollama
-│       ├── CT114 librechat
-│       └── CT200 openhands
-├── Proxmox backup server (192.168.0.100)
+│       ├── CT109 AI          → Claude Code / OpenHands
+│       ├── CT110 Database    → PostgreSQL 16
+│       ├── CT111 AI          → Hermes Agent
+│       ├── CT114 AI          → LibreChat
+│       └── CT118 AI          → LiteLLM proxy
+│
+├── pve-node2 (192.168.0.17) — HP EliteDesk 800 G4 (i5-8500T, 32GB)
+│       ├── CT112 AI          → Ollama + RTX 3060 12GB
+│       └── VM200             → Bazzite (GPU passthrough, игры)
+│
 ├── Synology DS223J (192.168.0.20) ← NFS
 └── Wi-Fi: Archer AX55 + AX12
 ```
 
-Ключевая идея: **наружу смотрит только один контейнер.**
+Ключевая идея: **только один контейнер смотрит в интернет.**
 
 ---
 
-## Сегментация LXC
+## Железо
 
-Все сервисы разнесены по **unprivileged LXC контейнерам**.
+### pve-node1 (192.168.0.65)
+- HP EliteDesk 800 G4 DM (i5-8500T, 16 GB RAM)
+- 256 GB NVMe (local-lvm)
+- круглосуточная работа, низкое энергопотребление
 
-| CTID | Роль | IP | Сервисы | Комментарий |
-|------|------|----|---------|-------------| 
-| 100 | Speedtest-tracker | 192.168.0.75 | Speedtest | автопроверка скорости интернета |
-| 101 | Edge | 192.168.0.101 | Traefik | единственная точка входа |
-| 102 | Media | 192.168.0.104 | Plex, Navidrome, iSponsorBlockTV | работает с NFS |
-| 103 | Monitoring | 192.168.0.103 | Grafana, Loki, Prometheus, NetAlertX | наблюдаемость |
-| 104 | Automation | 192.168.0.150 | n8n | изолирован для обновлений |
-| 105 | Security | 192.168.0.64 | Vaultwarden, SearxNG | только через HTTPS |
-| 106 | Utility | 192.168.0.106 | AdGuard Home, Syncthing, Homarr, Omniroute, Koffan | базовые сервисы, стартует первым |
-| 107 | Photo | 192.168.0.233 | Immich | отдельная нагрузка |
-| 108 | Lab | 192.168.0.108 | любые эксперименты | можно ломать |
-| 109 | claude | 192.168.0.76 | разработка | имеет доступ ко всему хосту |
-| 110 | postgresql | 192.168.0.9 | база данных для ИИ | имеют доступ Claude, Hermes, Ollama |
-| 111 | hermes | 192.168.0.111 | разработка | имеет доступ к Lab, postgresql|
-| 113 | dawarich | 192.168.0.77 | dawarich | геоданные |
-| 112 | ollama | 192.168.0.191 | разработка | имеет доступ к Lab, postgresql|
-| 114 | librechat | 192.168.0.92 | разработка | имеет доступ к Lab, postgresql|
-| 115 | uptimekuma | 192.168.0.247 | uptimekuma | мониторинг сервисов |
-| 116 | stirlingpdf | 192.168.0.127 | stirlingpdf | работа с pdf |
-| 117 | paperless-ngx | 192.168.0.137 | paperless-ngx | архив документов |
-| 200 | openhands | 192.168.0.116 | разработка | имеет доступ к Lab, postgresql|
+### pve-node2 (192.168.0.17)
+- HP EliteDesk 800 G4 (i5-8500T, 32 GB RAM)
+- 512 GB SSD
+- NVIDIA RTX 3060 12 GB (проброс в CT112 / VM200)
+- скрипт gpu-switch для переключения GPU между LXC и VM
 
-### Почему так
-
-- **одна точка входа** → проще контролировать доступ
-- **изоляция** → падение одного сервиса не тянет за собой всё
-- **понятная структура** → легче масштабировать и переносить
+### Сеть
+- MikroTik hEX S (маршрутизация, firewall, WireGuard VPN)
+- TP-Link SG108E (8-портовый гигабитный свитч)
+- TP-Link Archer AX55 + AX12 (Wi-Fi)
+- Synology DS223J (2-bay NAS, NFS)
 
 ---
 
-## Сеть
+## LXC сегментация
 
-- роутер: MikroTik hEX S
-- внешний доступ: только `80/443 → Traefik (CT101)`
-- внутренний DNS: AdGuard Home (CT106), `192.168.0.106:53`
-- внутренняя сеть: полностью приватная
+Все сервисы в **unprivileged LXC контейнерах**.
 
-> я не открываю сервисы «на всякий случай»  
-> наружу выходит только то, что действительно нужно
+| CTID | Роль | IP | Нода | Сервисы | Примечания |
+|------|------|----|------|---------|------------|
+| 101 | Edge | .101 | 1 | Traefik | единственная точка входа |
+| 102 | Media | .102 | 1 | Plex, Tautulli, inpx-web, Navidrome, iSponsorBlockTV | NFS |
+| 103 | Monitoring | .103 | 1 | Grafana, Loki, Prometheus, NetAlertX | наблюдаемость |
+| 104 | Automation | .104 | 1 | n8n | изолирован |
+| 105 | Security | .105 | 1 | Vaultwarden, SearxNG | только HTTPS |
+| 106 | Utility | .106 | 1 | AdGuard, Syncthing, Homarr, Docker, Gitea | грузится первым |
+| 107 | Radio | .107 | 1 | Asterisk, Kismet | изолирован |
+| 108 | Lab | .108 | 1 | эксперименты | можно ломать |
+| 109 | AI | .109 | 1 | Claude Code / OpenHands | coding agent |
+| 110 | DB | .110 | 1 | PostgreSQL 16 | общая БД |
+| 111 | AI | .111 | 1 | Hermes Agent | автоматизация |
+| 112 | AI | .112 | 2 | Ollama | GPU: RTX 3060 12GB |
+| 114 | AI | .114 | 1 | LibreChat | LLM web UI |
+| 118 | AI | .118 | 1 | LiteLLM | LLM proxy |
+
+### Виртуальные машины
+
+| VMID | Имя | Нода | Описание |
+|------|-----|------|----------|
+| 200 | bazzite | 2 | Игровая VM с GPU passthrough |
+
+---
+
+## AI / LLM стек
+
+```
+Пользователь
+│
+LibreChat (CT114) ────────────── HTTP ─────┐
+│                                          │
+Hermes Agent (CT111) ──── HTTP ────┐       │
+│                                  │       │
+LiteLLM (CT118) ─── proxy ─────────┤       │
+│                                  │       │
+OpenHands (CT109) ── HTTP ─────────┘       │
+│                                          │
+Ollama (CT112) ◄──── RTX 3060 12GB ◄───────┘
+│
+Модели: qwen2.5-coder:14b, deepseek-r1:14b, qwen3:8b
+```
+
+- **Ollama** (CT112, node2) — локальный инференс на RTX 3060
+- **LiteLLM** (CT118) — единый прокси для Ollama + облачных провайдеров
+- **LibreChat** (CT114) — OpenAI-совместимый web UI
+- **Hermes Agent** (CT111) — AI-агент для автоматизации задач
+- **OpenHands** (CT109) — AI coding agent
+- **PostgreSQL** (CT110) — общая база данных
 
 ---
 
 ## Хранилище
 
-- Synology DS223J как основное хранилище
+- Synology DS223J — основное хранилище
 - доступ через **NFS**
-- монтирование: сначала в Proxmox, затем bind-mount в контейнеры
+- монтируется на хосте Proxmox, затем bind-mount в контейнеры
 
-```bash
-mp0: /mnt/nas/media,mp=/media,ro=0
-```
+| Путь NFS | Монтирование на хосте | В контейнере |
+|----------|----------------------|--------------|
+| /volume1/Disk 1/Фильмы | /mnt/nas/movies | CT102:/media/movies |
+| /volume2/Disk 2/TV Shows | /mnt/nas/tv | CT102:/media/tv |
+| /volume1/music | /mnt/nas/music | CT102:/media/music |
+| /volume2/Disk 2/Книги/Flibusta | /mnt/nas/books | CT102:/media/books |
 
-Unprivileged LXC требует фиксов прав — решено через `systemd` oneshot сервис.  
-→ [runbook: NFS + LXC](./runbooks/ru/nfs-lxc-permissions.md)
+Unprivileged LXC требует фикс прав — см. [runbook: NFS + LXC](./runbooks/ru/nfs-lxc-permissions.md)
 
 ---
 
@@ -159,103 +192,26 @@ Unprivileged LXC требует фиксов прав — решено чере�
 
 Стек: **Grafana · Loki · Prometheus · NetAlertX**
 
-Цель — не просто «чтобы работало»,  
-а чтобы было видно **как именно это работает**.
-
 - **Prometheus** — сбор метрик (node_exporter на каждом LXC)
-- **Loki + Promtail** — агрегация логов со всех контейнеров
+- **Loki + Promtail** — агрегация логов
 - **Grafana** — дашборды: система, NFS, DNS, трафик
-- **NetAlertX** — обнаружение новых устройств в сети, алерты
-
-Все дашборды хранятся как JSON в [`lxc/monitoring/`](./lxc/monitoring/).
+- **NetAlertX** — обнаружение новых устройств в сети
 
 ---
 
 ## Безопасность
 
-### Текущее состояние
+### Текущая
+- единственный внешний вход через Traefik (CT101)
+- unprivileged LXC контейнеры
+- AdGuard Home блокирует трекинг/малварь на уровне DNS
+- секреты не хранятся в репозитории
+- WireGuard VPN для удалённого доступа
 
-- единая точка входа через Traefik (CT101)
-- чувствительные сервисы не публикуются напрямую
-- unprivileged LXC повсеместно
-- AdGuard Home блокирует трекинг и малварь на уровне DNS
-- Syncthing + Vaultwarden — только через HTTPS
-
-### В планах
-
-- **Authelia** — SSO / 2FA для внешних сервисов
-- **CrowdSec** — коллаборативная защита, интеграция с Traefik
+### Планируется
+- **Authelia** — SSO / 2FA
+- **CrowdSec** — collaborative threat detection
 - **Suricata** — IDS на хосте Proxmox
-
-### Реагирование на инциденты
-
-Runbook для типовых сценариев: [security-incidents.md](./runbooks/ru/security-incidents.md) *(WIP)*
-
----
-
-## Структура репозитория
-
-```
-homelab/
-├── scripts/
-│   └── deploy.sh              # создание всех LXC контейнеров
-├── lxc/
-│   ├── edge/
-│   │   └── services/traefik/
-│   ├── media/
-│   │   └── services/{plex,navidrome}/
-│   ├── monitoring/
-│   │   └── services/{grafana,loki,prometheus,netalertx}/
-│   ├── automation/
-│   │   └── services/n8n/
-│   ├── security/
-│   │   └── services/{vaultwarden,searxng}/
-│   ├── utility/
-│   │   └── services/{adguard,syncthing,homarr}/
-│   ├── radio/
-│   │   └── services/{asterisk,kismet}/
-│   └── lab/
-├── runbooks/
-│   ├── en/
-│   └── ru/
-└── projects/
-    └── fire-simulator/
-```
-
-Каждый сервис имеет одинаковую структуру:
-
-```
-services/<n>/
-├── install.sh        # идемпотентный установщик
-├── <n>.yaml       # шаблон конфига (без секретов)
-└── README.md         # заметки по сервису
-```
-
----
-
-## Runbooks
-
-| Тема | RU | EN |
-|------|----|-----|
-| Настройка Proxmox ноды (HP EliteDesk G4, BIOS, Watchdog) | [ru](./runbooks/ru/proxmox-node-setup.md) | [en](./runbooks/en/proxmox-node-setup.md) |
-| NFS + непривилегированный LXC: права доступа | [ru](./runbooks/ru/nfs-lxc-permissions.md) | [en](./runbooks/en/nfs-lxc-permissions.md) |
-| Миграция Plex: Synology → LXC | [ru](./runbooks/ru/plex-migration.md) | [en](./runbooks/en/plex-migration.md) |
-| ИБП через NUT (ExeGate + Synology как клиент) | [ru](./runbooks/ru/nut-ups.md) | [en](./runbooks/en/nut-ups.md) |
-| Traefik + MikroTik + Let's Encrypt | [ru](./runbooks/ru/traefik-setup.md) *(WIP)* | [en](./runbooks/en/traefik-setup.md) *(WIP)* |
-
----
-
-## Проекты
-
-### 🔥 Fire Training Simulator
-
-Система для тренировок МЧС на базе ESP32:
-- LED индикация (WS2812B)
-- ИК-сенсоры
-- ESP-NOW mesh
-- web-интерфейс управления
-
-→ [`projects/fire-simulator/`](./projects/fire-simulator/)
 
 ---
 
@@ -263,32 +219,20 @@ services/<n>/
 
 **Ближайшее**
 - [ ] Traefik + Let's Encrypt
-- [ ] Внешний доступ для выбранных сервисов
-
-**Дальше**
 - [ ] Authelia + CrowdSec
-- [ ] Immich (фотогалерея)
+- [ ] Immich (фотографии)
 
-**Долгосрочно**
+**Долгосрочное**
 - [ ] k3s кластер на Proxmox
-- [ ] Longhorn
-- [ ] Вторая нода · апгрейд RAM до 32–64GB
-- [ ] Сертификация CKA
-
----
-
-## Зачем это всё
-
-- перейти от «запуска сервисов» к **архитектуре**
-- приблизить домашнюю инфраструктуру к production-паттернам
-- прокачать практические навыки DevOps / SRE
+- [ ] Longhorn распределённое хранилище
+- [ ] CKA сертификация
 
 ---
 
 ## Стек
 
-Proxmox · LXC · MikroTik · Synology · Traefik · Grafana · Loki · Prometheus · AdGuard Home
+Proxmox · LXC · MikroTik · Synology · Traefik · Grafana · Loki · Prometheus · AdGuard Home · Ollama · LiteLLM · LibreChat · Hermes Agent · PostgreSQL · Gitea · NVIDIA RTX 3060
 
 ---
 
-*Viktor · Minsk, Belarus*
+*viktot14 · Минск, Беларусь*
