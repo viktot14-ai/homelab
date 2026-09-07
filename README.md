@@ -2,12 +2,11 @@
 
 ![status](https://img.shields.io/badge/status-active-blue)
 ![proxmox](https://img.shields.io/badge/platform-proxmox-orange)
-![nodes](https://img.shields.io/badge/nodes-2-green)
-![gpu](https://img.shields.io/badge/GPU-RTX%203060-purple)
+![nodes](https://img.shields.io/badge/nodes-1-green)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
-Personal self-hosted infrastructure platform built on **Proxmox VE** (2-node cluster).
-Self-hosted services, monitoring, local LLM inference, AI agents, and controlled external access.
+Personal self-hosted infrastructure platform built on **Proxmox VE** (single node).
+Self-hosted services, monitoring, AI tooling, and controlled external access.
 
 > This is not just a collection of containers.  
 > It's an attempt to build a system that is understandable and manageable.
@@ -18,20 +17,17 @@ Self-hosted services, monitoring, local LLM inference, AI agents, and controlled
 
 ## Quick Start
 
-> Prerequisites: 2 Proxmox VE nodes, Synology NAS on NFS, MikroTik hEX S router.
+> Prerequisites: Proxmox VE node, Synology NAS on NFS, MikroTik hEX S router.
 
 ```bash
-# 1. Clone the repo
+# 1. Clone the repo (GitHub or Gitea mirror)
 git clone https://github.com/viktot14-ai/homelab.git
 cd homelab
 
 # 2. Create all LXC containers (node1)
 bash scripts/deploy.sh
 
-# 3. Create node2 containers only
-bash scripts/deploy.sh --node 2
-
-# 4. Bootstrap a specific service (example: AdGuard Home)
+# 3. Bootstrap a specific service (example: AdGuard Home)
 cd lxc/utility/services/adguard
 bash install.sh
 ```
@@ -43,7 +39,6 @@ Full setup sequence:
 | Proxmox node setup (BIOS, repos, watchdog) | [runbook](./runbooks/ru/proxmox-node-setup.md) *(WIP)* |
 | Create all LXC containers | `bash scripts/deploy.sh` |
 | NFS mount + permissions fix | [runbook](./runbooks/ru/nfs-lxc-permissions.md) |
-| GPU passthrough (RTX 3060 → CT112) | [runbook](./runbooks/ru/gpu-passthrough.md) |
 | Bootstrap services inside containers | `lxc/<role>/services/<name>/install.sh` |
 | Traefik + Let's Encrypt | [runbook](./runbooks/ru/traefik-setup.md) *(WIP)* |
 
@@ -74,28 +69,23 @@ TP-Link SG108E (switch)
 ├── pve-node1 (192.168.0.65) — HP EliteDesk 800 G4 (i5-8500T, 16GB) — Proxmox VE 9.2.11
 │       ├── CT101 Edge        → Traefik (sole internet-facing container)
 │       ├── CT102 Media       → inpx-web
-│       ├── CT104 Automation  → n8n
 │       ├── CT106 Utility     → AdGuard Home, Syncthing, Homarr, Docker, Gitea
 │       ├── CT107 Photo       → Immich
 │       ├── CT108 Lab         → experiments
-│       ├── CT109 AI          → Claude Code / OpenHands
 │       ├── CT110 Database    → PostgreSQL 16
-│       ├── CT111 AI          → Hermes Agent
 │       ├── CT113 Productivity → Dawarich (location tracking)
-│       ├── CT114 AI          → LibreChat
 │       ├── CT115 Monitoring  → Uptime Kuma
 │       ├── CT116 Productivity → Stirling-PDF
 │       ├── CT117 Productivity → Paperless-ngx
-│       ├── CT118 AI          → LiteLLM proxy
 │       ├── CT119 Media       → Plex
 │       ├── CT120 Monitoring  → Tautulli
 │       ├── CT121 Productivity → Monica (personal CRM)
-│       └── CT122 RVS
+│       └── CT122 RVS         → РВС (FastAPI+React+MSSQL)
 │
-├── pve-node2 (192.168.0.17) — HP EliteDesk 800 G4 (i5-8500T, 32GB) — Proxmox VE 9.1.1
-│       ├── CT112 AI          → Ollama + RTX 3060 12GB GPU
-│       └── VM200             → Bazzite (GPU passthrough, gaming)
+├── omarchy (192.168.0.16) — Arch Linux workstation (ex-node2, i5-10500, 16GB)
+│       └── Ollama (LLM service)
 │
+├── pbs (192.168.0.100) — Proxmox Backup Server
 ├── Synology DS223J (192.168.0.20) ← NFS
 └── Wi-Fi: Archer AX55 + AX12
 ```
@@ -103,7 +93,14 @@ TP-Link SG108E (switch)
 Key idea: **only one container faces the internet.**
 
 > **Note:** All LXC container IPs are assigned via **DHCP** and may change.
-> IPs listed below were verified on 2026-08-22.
+> IPs listed below were verified on 2026-09-07.
+
+### Decommissioned (2026-09)
+
+Second Proxmox node (192.168.0.17) was removed from the cluster on 2026-09-04;
+the machine is now the **Omarchy (Arch) workstation**. VM200 (Bazzite) and CT112
+(Ollama LXC) no longer exist. AI-stack containers CT104 (n8n), CT109 (OpenHands),
+CT111 (Hermes Agent), CT114 (LibreChat), CT118 (LiteLLM) were also retired.
 
 ---
 
@@ -113,14 +110,16 @@ Key idea: **only one container faces the internet.**
 - HP EliteDesk 800 G4 DM (i5-8500T, 16 GB RAM)
 - 256 GB NVMe (local-lvm)
 - 24/7 low-power operation
-- Proxmox VE 9.2.11
+- Proxmox VE 9.2.11, single-node cluster (quorum via 1 node)
 
-### pve-node2 (192.168.0.17)
-- HP EliteDesk 800 G4 (i5-8500T, 32 GB RAM)
-- 512 GB SSD
-- NVIDIA RTX 3060 12 GB (GPU passthrough to CT112 / VM200)
-- gpu-switch script for switching GPU between LXC and VM
-- Proxmox VE 9.1.1
+### omarchy workstation (192.168.0.16, ex-node2)
+- HP EliteDesk 800 G4 (i5-10500, 16 GB RAM)
+- ~240 GB NVMe, Arch Linux + Omarchy desktop
+- RTX 3060 12 GB physically installed but **not detected** in lspci (only Intel UHD 630) — OCuLink/BIOS needs checking before any GPU use
+- Runs Ollama as a local LLM service; current model `glm-5.2:cloud` is routed to ollama.com (no local weights) — keep in mind for privacy-sensitive workloads
+
+### pbs (192.168.0.100)
+- Proxmox Backup Server, datastore `synology-backup` (~500 GB)
 
 ### Network
 - MikroTik hEX S (routing, firewall, WireGuard VPN)
@@ -133,65 +132,39 @@ Key idea: **only one container faces the internet.**
 ## LXC Segmentation
 
 All services run in **unprivileged LXC containers**.
-20 containers across 2 nodes — all on node1 except CT112 (node2).
+14 containers on node1.
 
-| CTID | Role | IP | Node | Services | Notes |
-|------|------|----|------|----------|-------|
-| 101 | Edge | .101 | 1 | Traefik | single entry point |
-| 102 | Media | .176 | 1 | inpx-web | NFS access |
-| 104 | Automation | .150 | 1 | n8n | isolated for safe updates |
-| 106 | Utility | .106 | 1 | AdGuard Home, Syncthing, Homarr, Docker, Gitea | boots first |
-| 107 | Photo | .233 | 1 | Immich | photo management |
-| 108 | Lab | .99 | 1 | experiments | safe to break |
-| 109 | AI | .76 | 1 | Claude Code / OpenHands | coding agent |
-| 110 | Database | .9 | 1 | PostgreSQL 16 | shared DB |
-| 111 | AI | .111 | 1 | Hermes Agent | automation |
-| 112 | AI | .191 | 2 | Ollama | GPU: RTX 3060 12GB |
-| 113 | Productivity | .77 | 1 | Dawarich | location tracking, integrates with Immich |
-| 114 | AI | .92 | 1 | LibreChat | LLM web UI |
-| 115 | Monitoring | .247 | 1 | Uptime Kuma | uptime monitoring |
-| 116 | Productivity | .127 | 1 | Stirling-PDF | PDF tools |
-| 117 | Productivity | .137 | 1 | Paperless-ngx | document management |
-| 118 | AI | .188 | 1 | LiteLLM | LLM proxy |
-| 119 | Media | .199 | 1 | Plex | media server |
-| 120 | Monitoring | .205 | 1 | Tautulli | Plex analytics |
-| 121 | Productivity | .7 | 1 | Monica | personal CRM |
-| 122 | RVS | .122 | 1 | — | — |
+| CTID | Role | IP | Services | Notes |
+|------|------|----|----------|-------|
+| 101 | Edge | .101 | Traefik | single entry point |
+| 102 | Media | .176 | inpx-web | NFS access |
+| 106 | Utility | .106 | AdGuard Home, Syncthing, Homarr, Docker, Gitea | boots first |
+| 107 | Photo | .233 | Immich | photo management |
+| 108 | Lab | .99 | experiments | safe to break |
+| 110 | Database | .9 | PostgreSQL 16 | shared DB |
+| 113 | Productivity | .77 | Dawarich | location tracking, integrates with Immich |
+| 115 | Monitoring | .247 | Uptime Kuma | uptime monitoring |
+| 116 | Productivity | .127 | Stirling-PDF | PDF tools |
+| 117 | Productivity | .137 | Paperless-ngx | document management |
+| 119 | Media | .199 | Plex | media server |
+| 120 | Monitoring | .205 | Tautulli | Plex analytics |
+| 121 | Productivity | .7 | Monica | personal CRM |
+| 122 | RVS | .122 | РВС (FastAPI+React+MSSQL) | work system, not homelab |
 
 > All IPs are **DHCP-assigned** — verify before connecting.
 
-### VMs
-
-| VMID | Name | Node | Description |
-|------|------|------|-------------|
-| 200 | bazzite | 2 | Gaming VM with GPU passthrough |
-
 ---
 
-## AI / LLM Stack
+## AI / LLM
 
-```
-User
-│
-LibreChat (CT114) ────────────── HTTP ─────┐
-│                                          │
-Hermes Agent (CT111) ──── HTTP ────┐       │
-│                                  │       │
-LiteLLM (CT118) ─── proxy ─────────┤       │
-│                                  │       │
-OpenHands (CT109) ── HTTP ─────────┘       │
-│                                          │
-Ollama (CT112) ◄──── RTX 3060 12GB ◄───────┘
-│
-Models: qwen2.5-coder:14b, deepseek-r1:14b, qwen3:8b
-```
+The self-hosted AI stack (n8n, OpenHands, Hermes Agent, LibreChat, LiteLLM on
+dedicated LXC containers) was retired in September 2026.
 
-- **Ollama** (CT112, node2) — local LLM inference on RTX 3060
-- **LiteLLM** (CT118) — unified proxy for Ollama + cloud providers
-- **LibreChat** (CT114) — OpenAI-compatible web UI
-- **Hermes Agent** (CT111) — AI agent for task automation
-- **OpenHands** (CT109) — AI coding agent
-- **PostgreSQL** (CT110) — shared database backend
+Current state:
+- **Ollama** runs on the omarchy workstation (192.168.0.16), systemd service
+- Model in use: `glm-5.2:cloud` (proxied to ollama.com — **not** local weights)
+- For privacy-sensitive data (e.g. SAR children data), local-only models must be
+  pulled before use — nothing local is installed right now
 
 ---
 
@@ -213,10 +186,13 @@ Models: qwen2.5-coder:14b, deepseek-r1:14b, qwen3:8b
 
 | NFS path | Host mount | Container |
 |----------|-----------|-----------|
-| /volume1/Disk 1/Фильмы | /mnt/nas/movies | CT102:/media/movies |
-| /volume2/Disk 2/TV Shows | /mnt/nas/tv | CT102:/media/tv |
-| /volume1/music | /mnt/nas/music | CT102:/media/music |
-| /volume2/Disk 2/Книги/Flibusta | /mnt/nas/books | CT102:/media/books |
+| /volume1/Disk 1/Фильмы | /mnt/nas/movies | CT119:/media/movies (Plex) |
+| /volume2/Disk 2/TV Shows | /mnt/nas/tv | CT119:/media/tv (Plex) |
+| /volume1/music | /mnt/nas/music | CT119:/media/music (Plex) *(host mount absent since 2026-09-07 — re-add if needed)* |
+| /volume2/Disk 2/Книги/Flibusta | /mnt/nas/books | CT102:/media/books (inpx-web) |
+
+Backups: **Proxmox Backup Server** at 192.168.0.100, datastore `synology-backup`
+(storage `synology-pbs`, ~500 GB, ~38% used).
 
 Unprivileged LXC requires permission fixes — see [runbook: NFS + LXC](./runbooks/ru/nfs-lxc-permissions.md)
 
@@ -252,30 +228,33 @@ Stack: **Uptime Kuma · Tautulli**
 ```
 homelab/
 ├── scripts/
-│   └── deploy.sh                    # create all LXC containers (2 nodes)
+│   └── deploy.sh                    # create all LXC containers (node1)
 ├── ansible/
-│   ├── inventory/hosts.ini          # all CTs + both nodes (DHCP IPs)
+│   ├── inventory/hosts.ini          # CTs + node (DHCP IPs)
 │   └── playbooks/
 │       ├── site.yml                 # full playbook
 │       ├── base.yml                 # base LXC setup
 │       └── media.yml                # CT102 media services
 ├── lxc/
 │   ├── edge/services/traefik/
-│   ├── media/services/{inpx-web,plex,tautulli}/
-│   ├── monitoring/services/uptime-kuma/
+│   ├── media/services/{isponsorblock,navidrome,plex,tautulli}/
+│   ├── monitoring/services/{grafana,loki,netalertx,prometheus,uptime-kuma}/
 │   ├── automation/services/n8n/
 │   ├── utility/services/{adguard,syncthing,homarr,docker,gitea}/
-│   ├── photo/services/immich/
-│   ├── ai/services/{ollama,hermes,librechat,litellm,claude-code}/
-│   ├── databases/services/postgres/
 │   ├── productivity/services/{dawarich,stirling-pdf,paperless-ngx,monica}/
-│   └── lab/
+│   ├── databases/services/postgres/
+│   ├── security/services/{searxng,vaultwarden}/
+│   └── ai/services/{claude-code,hermes,librechat,litellm,ollama}/   # retired, kept for reference
 ├── runbooks/
 │   └── ru/
 │       ├── nfs-lxc-permissions.md
-│       └── gpu-passthrough.md
+│       └── gpu-passthrough.md       # historical (node2 removed)
 └── README.md / README.ru.md
 ```
+
+Mirrors: **GitHub** [viktot14-ai/homelab](https://github.com/viktot14-ai/homelab)
+(primary) and **Gitea** `Sadmin/homelab` (192.168.0.106, private backup copy).
+Sync rule lives in [AGENTS.md](./AGENTS.md).
 
 ---
 
@@ -284,7 +263,7 @@ homelab/
 | Topic | RU |
 |-------|-----|
 | NFS + unprivileged LXC permissions | [ru](./runbooks/ru/nfs-lxc-permissions.md) |
-| GPU passthrough (RTX 3060 → CT112) | [ru](./runbooks/ru/gpu-passthrough.md) |
+| GPU passthrough (RTX 3060 → CT112) *(historical)* | [ru](./runbooks/ru/gpu-passthrough.md) |
 | Proxmox node setup | *(WIP)* |
 | Traefik + MikroTik + Let's Encrypt | *(WIP)* |
 
@@ -295,6 +274,7 @@ homelab/
 **Near-term**
 - [ ] Traefik + Let's Encrypt finalization
 - [ ] Authelia + CrowdSec
+- [ ] Fix RTX 3060 detection on omarchy (OCuLink/BIOS)
 
 **Long-term**
 - [ ] k3s cluster on Proxmox
@@ -305,7 +285,7 @@ homelab/
 
 ## Stack
 
-Proxmox · LXC · MikroTik · Synology · Traefik · AdGuard Home · Ollama · LiteLLM · LibreChat · Hermes Agent · PostgreSQL · Gitea · Immich · Dawarich · Uptime Kuma · Stirling-PDF · Paperless-ngx · Monica · Plex · Tautulli · NVIDIA RTX 3060
+Proxmox · LXC · PBS · MikroTik · Synology · Traefik · AdGuard Home · Ollama · PostgreSQL · Gitea · Immich · Dawarich · Uptime Kuma · Stirling-PDF · Paperless-ngx · Monica · Plex · Tautulli · Arch/Omarchy workstation
 
 ---
 

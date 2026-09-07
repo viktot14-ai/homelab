@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # deploy.sh — provision all homelab LXC containers on Proxmox
 # Run on pve-node1 as root
-# Usage: bash scripts/deploy.sh [--dry-run] [--ctid 106] [--node 2]
+# Usage: bash scripts/deploy.sh [--dry-run] [--ctid 106]
 #
 # NOTE: IPs are DHCP — actual IPs may differ from those listed here.
 # Verify with: pct exec <CTID> -- ip -4 addr show eth0
+#
+# Single-node since 2026-09-04: node2 removed (was .17), AI-stack LXC retired.
 set -euo pipefail
 
 # ─── Config ────────────────────────────────────────────────────────────────────
@@ -17,12 +19,11 @@ SSH_KEYFILE="/root/.ssh/authorized_keys"
 
 DRY_RUN=false
 FILTER_CTID=""
-FILTER_NODE=""
 
 # ─── Container definitions ─────────────────────────────────────────────────────
 # Format: "CTID:HOSTNAME:IP:DHCPCORES:RAM_MB:DISK_GB:UNPRIV:NODE:DESCRIPTION"
 # IP field is the expected DHCP address (may differ)
-# NODE: 1 = pve-node1 (.65), 2 = pve-node2 (.17)
+# NODE column kept for format compatibility; only node1 (1) exists.
 CONTAINERS=(
   # ── Edge ──
   "101:edge:192.168.0.101:1:512:4:1:1:Traefik reverse proxy"
@@ -30,21 +31,14 @@ CONTAINERS=(
   "102:inpx-web:192.168.0.176:2:1024:8:1:1:inpx-web (Flibusta catalog)"
   "119:plex:192.168.0.199:2:2048:16:1:1:Plex Media Server"
   "120:tautulli:192.168.0.205:1:512:4:1:1:Tautulli (Plex monitoring)"
-  # ── Automation ──
-  "104:automation:192.168.0.150:1:512:4:1:1:n8n"
   # ── Utility ──
   "106:utility:192.168.0.106:2:1024:16:1:1:AdGuard Home, Docker, Gitea, Homarr"
   # ── Photo ──
   "107:photo:192.168.0.233:2:2048:16:1:1:Immich (photo management)"
   # ── Lab ──
   "108:lab:192.168.0.99:2:1024:8:1:1:Lab / experiments"
-  # ── AI / LLM stack ──
-  "109:claude:192.168.0.76:2:2048:16:1:1:OpenHands / Claude Code agent"
+  # ── Database ──
   "110:postgresql:192.168.0.9:2:2048:16:1:1:PostgreSQL 16 (shared DB)"
-  "111:hermes:192.168.0.111:2:2048:16:1:1:Hermes Agent"
-  "112:ollama:192.168.0.191:4:8192:90:1:2:Ollama + RTX 3060 GPU passthrough"
-  "114:librechat:192.168.0.92:2:2048:8:1:1:LibreChat (OpenAI-compatible UI)"
-  "118:litellm:192.168.0.188:2:1024:8:1:1:LiteLLM proxy"
   # ── Productivity ──
   "113:dawarich:192.168.0.77:1:512:8:1:1:Dawarich (location tracking)"
   "116:stirling-pdf:192.168.0.127:1:512:8:1:1:Stirling-PDF (PDF tools)"
@@ -55,6 +49,9 @@ CONTAINERS=(
   # ── Work (non-homelab, private) ──
   "122:rvs:192.168.0.122:2:2048:16:1:1:RVS (FastAPI+React+MSSQL)"
 )
+# Retired 2026-09 (do not recreate): 104 n8n, 109 OpenHands, 111 Hermes Agent,
+# 112 Ollama+GPU, 114 LibreChat, 118 LiteLLM. Ollama now runs on the omarchy
+# workstation (192.168.0.16) as a systemd service.
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 log()  { echo "  [$(date '+%H:%M:%S')] $*"; }
@@ -69,13 +66,11 @@ Usage: bash scripts/deploy.sh [OPTIONS]
 Options:
   --dry-run        Print commands without executing
   --ctid <id>      Only create/update this container (e.g. --ctid 106)
-  --node <n>       Only create containers on this node (1 or 2)
   --help           Show this help
 
 Examples:
   bash scripts/deploy.sh                  # create all containers
-  bash scripts/deploy.sh --node 1         # only node1 containers
-  bash scripts/deploy.sh --ctid 112       # only ollama container
+  bash scripts/deploy.sh --ctid 106       # only utility container
   bash scripts/deploy.sh --dry-run        # preview what would happen
 
 NOTE: IPs are DHCP. Verify actual IP after creation:
@@ -97,7 +92,6 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run) DRY_RUN=true ;;
     --ctid)    FILTER_CTID="$2"; shift ;;
-    --node)    FILTER_NODE="$2"; shift ;;
     --help)    usage ;;
     *) err "Unknown option: $1"; usage ;;
   esac
@@ -138,11 +132,6 @@ for entry in "${CONTAINERS[@]}"; do
 
   # Apply CTID filter if set
   if [[ -n "$FILTER_CTID" && "$CTID" != "$FILTER_CTID" ]]; then
-    continue
-  fi
-
-  # Apply node filter if set
-  if [[ -n "$FILTER_NODE" && "$NODE" != "$FILTER_NODE" ]]; then
     continue
   fi
 
@@ -193,14 +182,6 @@ for entry in "${CONTAINERS[@]}"; do
     run "pct set ${CTID} --mp0 /mnt/nas/books,mp=/media/books,ro=0"
   fi
 
-  # CT112 (ollama) — GPU passthrough (run on node2)
-  if [[ "$CTID" == "112" ]]; then
-    log "Configuring GPU for CT112..."
-    run "pct set ${CTID} --dev0 /dev/nvidia0"
-    run "pct set ${CTID} --dev1 /dev/nvidiactl"
-    run "pct set ${CTID} --dev2 /dev/nvidia-uvm"
-  fi
-
   log "Starting CT${CTID}..."
   run "pct start ${CTID}"
 
@@ -234,5 +215,4 @@ echo "  Next steps:"
 echo "  1. Verify DHCP IP: pct exec <CTID> -- ip -4 addr show eth0"
 echo "  2. Install services: cd lxc/<role>/services/<name> && bash install.sh"
 echo "  3. Or use Ansible: ansible-playbook -i inventory/hosts.ini playbooks/site.yml"
-echo "  4. GPU: CT112 on node2 needs NVIDIA drivers — see runbooks/ru/gpu-passthrough.md"
 echo "═══════════════════════════════════════════════════"
